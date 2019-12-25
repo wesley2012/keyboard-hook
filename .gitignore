@@ -50,3 +50,4 @@ cmake-build-debug/
 *.sdf
 Debug/
 Release/
+x64/
