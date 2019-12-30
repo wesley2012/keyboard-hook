@@ -31,24 +31,29 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	char title[] = "Key Tracer";
 	BOOL error = FALSE;
 	HINSTANCE dllhinst;
-	typedef VOID(CALLBACK* LPFNDLLFUNC1)(VOID);
-	LPFNDLLFUNC1 lpfnDllFunc1;
+	typedef VOID(CALLBACK* SETKBHOOK)(VOID);
+	typedef VOID(CALLBACK* REMOVEKBHOOK)(VOID);
+	SETKBHOOK lpfnDllKBHook;
+	REMOVEKBHOOK lpfnDllRemoveHook;
 
 	dllhinst = LoadLibrary("keyHook.dll");
 	if (dllhinst != NULL)
 	{
-		lpfnDllFunc1 = (LPFNDLLFUNC1)GetProcAddress(dllhinst, "SetKbHook");
-		if (!lpfnDllFunc1)
+		lpfnDllKBHook = (SETKBHOOK)GetProcAddress(dllhinst, "SetKbHook");
+		lpfnDllRemoveHook = (SETKBHOOK)GetProcAddress(dllhinst, "RemoveKbHook");
+		if (!lpfnDllKBHook)
 		{
 			FreeLibrary(dllhinst);
 			error = TRUE;
 		}
 		else
 		{
-			lpfnDllFunc1();
+			lpfnDllKBHook();
 		}
 	}
-	else error = TRUE;
+	else {
+		error = TRUE;
+	}
 
 	if (error)
 		MessageBox(GetDesktopWindow(), text, title, MB_OK);
@@ -59,5 +64,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		DispatchMessage(&msg);
 	};
 
+	lpfnDllRemoveHook();
+	FreeLibrary(dllhinst);
 	return msg.wParam;
 }

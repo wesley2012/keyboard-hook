@@ -51,6 +51,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (CurrentProcessIsTargetProcess(_T("explorer.exe")))
 		{
 			DebugOutputMsg(_T("DLL_PROCESS_ATTACH Set Key borard hook."));
+			// set the 
 			SetKbHook();
 		}
 		break;
