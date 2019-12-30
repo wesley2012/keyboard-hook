@@ -7,33 +7,32 @@
 
 HMODULE hInst;
 
-std::string GetCurrentProcssName(HMODULE hDllModule)
+// get current process name, without directories
+void GetCurrentProcssName(HMODULE hDllModule, char *process_name)
 {
-	TCHAR exeFullPath[MAX_PATH];
-	std::string strPath = _T("");
+	char exeFullPath[MAX_PATH];
 
 	GetModuleFileName(hDllModule,exeFullPath,MAX_PATH);
-	strPath=(std::string)exeFullPath;
-	int pos = strPath.find_last_of('\\', strPath.length());
-	return strPath.substr(pos+1);
+	char *slash = strrchr(exeFullPath, '\\');
+	if (slash) 
+	{
+		strcpy(process_name, slash + 1);
+	}
+	else 
+	{
+		strcpy(process_name, exeFullPath);
+	}
 }
 
-std::string StringToLow(std::string& strSource)
-{
-	std::transform(strSource.begin(), strSource.end(), strSource.begin(), tolower);
-
-	return strSource;
-}
-
-// 
-bool CurrentProcessIsTargetProcess(std::string targetProcessName) {
-	std::string process_name = GetCurrentProcssName(NULL);
-	std::string low_process_name = StringToLow(process_name);
-	if (low_process_name == targetProcessName)
+// check if the process loading this dll is our target process (explorer.exe)
+bool CurrentProcessIsTargetProcess(const char * targetProcessName) {
+	char process_name[MAX_PATH];
+	GetCurrentProcssName(NULL, process_name);
+	_strlwr(process_name);
+	if (strcmp(process_name, targetProcessName)==0)
 	{
 		return true;
 	}
-
 	return false;
 }
 
