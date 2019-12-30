@@ -25,7 +25,17 @@ std::string StringToLow(std::string& strSource)
 	return strSource;
 }
 
+// 
+bool CurrentProcessIsTargetProcess(std::string targetProcessName) {
+	std::string process_name = GetCurrentProcssName(NULL);
+	std::string low_process_name = StringToLow(process_name);
+	if (low_process_name == targetProcessName)
+	{
+		return true;
+	}
 
+	return false;
+}
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -34,29 +44,28 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 {
 	switch (ul_reason_for_call)
 	{
-	//TODO:  Check the current process name is explorer.exe or not. 
 	case DLL_PROCESS_ATTACH:
+		// DLL is being mapped into the process' address space.
 		hInst = hModule;
+		//TODO:  Check the current process name is explorer.exe or not, if true set keyboard hook.
+		if (CurrentProcessIsTargetProcess(_T("explorer.exe")))
 		{
-			std::string process_name = GetCurrentProcssName(NULL);
-			std::string low_process_name = StringToLow(process_name);
-			if (low_process_name == _T("explorer.exe"))
-			{
-				DebugOutputMsg(_T("Dllmain ATTTACH, process_name = %s."), process_name.c_str());
-				SetKbHook();
-			}
+			DebugOutputMsg(_T("DLL_PROCESS_ATTACH Set Key borard hook."));
+			SetKbHook();
 		}
 		break;
 	case DLL_THREAD_ATTACH:
+		// A thread is being created.
 		break;
 	case DLL_THREAD_DETACH:
+		// A thread is exiting cleanly.
 		break;
 	case DLL_PROCESS_DETACH:
-		std::string process_name = GetCurrentProcssName(NULL);
-		std::string low_process_name = StringToLow(process_name);
-		if (low_process_name == _T("explorer.exe"))
+		// DLL is being unmapped from the process' address space.
+		//TODO:  Check the current process name is explorer.exe or not, if true remove keyboard hook.
+		if (CurrentProcessIsTargetProcess(_T("explorer.exe")))
 		{
-			DebugOutputMsg(_T("Dllmain DETACH, process_name = %s."), process_name.c_str());
+			DebugOutputMsg(_T("DLL_PROCESS_DETACH remove Key borard hook."));
 			RemoveKbHook();
 		}
 		break;
