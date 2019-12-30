@@ -44,6 +44,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		//TODO:  Check the current process name is explorer.exe or not, if true set keyboard hook.
 		//       You may need the function CurrentProcessIsTargetProcess
 		
+
 		break;
 	case DLL_THREAD_ATTACH:
 		// A thread is being created.
