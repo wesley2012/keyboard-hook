@@ -33,13 +33,13 @@ KEYHOOK_API void SetKbHook(void)
 {
 	if (!bHooked)
 	{
-		// set keyboard hook
-		hhook = SetWindowsHookEx(WH_KEYBOARD, (HOOKPROC)KeyboardProc, hInst, (DWORD)NULL);
+		// TO DO: set keyboard hook
+		
 		// for SetWindowsHookEx see https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexa
 		// for KeyboardProc see https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644984(v=vs.85)
 
-		// set message hook
-		hhookMsg = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, hInst, (DWORD)NULL);
+		// TO DO: set message hook
+		
 		// for GetMsgProc see https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644981(v=vs.85)
 
 		bHooked = TRUE;
@@ -114,7 +114,7 @@ LRESULT CALLBACK GetMsgProc(
 		MSG * pMsg = (MSG *)lParam;
 		if (pMsg->message == WM_CHAR) // for WM_CHAR, see https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char
 		{
-			char ch = (char)pMsg->wParam; // The character code of the key
+			char ch = 'X'; // TO DO: get The character code of the key
 
 			DebugOutputMsg(_T("message hook, msg=%c"), ch);
 

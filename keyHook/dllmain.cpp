@@ -12,23 +12,18 @@ void GetCurrentProcssName(HMODULE hDllModule, char *process_name)
 {
 	char exeFullPath[MAX_PATH];
 
-	GetModuleFileName(hDllModule,exeFullPath,MAX_PATH);
-	char *slash = strrchr(exeFullPath, '\\');
-	if (slash) 
-	{
-		strcpy(process_name, slash + 1);
-	}
-	else 
-	{
-		strcpy(process_name, exeFullPath);
-	}
+	// TO DO: use GetModuleFileNameA to get full path of current process 
+	// for GetModuleFileNameA see https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamea
+	
+	// TO DO: extract the file name without directories, store it into process_name
+	
 }
 
 // check if the process loading this dll is our target process (explorer.exe)
 bool CurrentProcessIsTargetProcess(const char * targetProcessName) {
 	char process_name[MAX_PATH];
 	GetCurrentProcssName(NULL, process_name);
-	_strlwr(process_name);
+	_strlwr(process_name); // https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/strlwr-wcslwr-mbslwr-strlwr-l-wcslwr-l-mbslwr-l?view=vs-2019
 	if (strcmp(process_name, targetProcessName)==0)
 	{
 		return true;
@@ -47,11 +42,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		// DLL is being mapped into the process' address space.
 		hInst = hModule;
 		//TODO:  Check the current process name is explorer.exe or not, if true set keyboard hook.
-		if (CurrentProcessIsTargetProcess(_T("explorer.exe")))
-		{
-			DebugOutputMsg(_T("DLL_PROCESS_ATTACH Set Key borard hook."));
-			SetKbHook();
-		}
+		//       You may need the function CurrentProcessIsTargetProcess
+		
 		break;
 	case DLL_THREAD_ATTACH:
 		// A thread is being created.
@@ -62,11 +54,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	case DLL_PROCESS_DETACH:
 		// DLL is being unmapped from the process' address space.
 		//TODO:  Check the current process name is explorer.exe or not, if true remove keyboard hook.
-		if (CurrentProcessIsTargetProcess(_T("explorer.exe")))
-		{
-			DebugOutputMsg(_T("DLL_PROCESS_DETACH remove Key borard hook."));
-			RemoveKbHook();
-		}
+		//       You may need the function CurrentProcessIsTargetProcess
+		
 		break;
 	}
 	return TRUE;
