@@ -10,6 +10,10 @@
 # Precompiled Headers
 *.gch
 *.pch
+*.opensdf
+*.pdb
+*.v12*
+*.suo
 
 # Compiled Dynamic libraries
 *.so
@@ -51,3 +55,5 @@ cmake-build-debug/
 Debug/
 Release/
 x64/
+ipch/
+Release-64/

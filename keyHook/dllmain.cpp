@@ -26,6 +26,7 @@ std::string StringToLow(std::string& strSource)
 }
 
 
+
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
@@ -33,6 +34,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 {
 	switch (ul_reason_for_call)
 	{
+	//TODO:  Check the current process name is explorer.exe or not. 
 	case DLL_PROCESS_ATTACH:
 		hInst = hModule;
 		{
